@@ -1,0 +1,5 @@
+{
+  "name": "Secret Santa AI",
+  "description": "A smart Secret Santa organizer where participants can manage wishlists and get AI-powered gift suggestions for their recipients.",
+  "requestFramePermissions": []
+}
