@@ -1,11 +1,12 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { GiftSuggestion, Language } from '../types';
 
 const getAiClient = () => {
+  // Use process.env.API_KEY exclusively as per guidelines.
   const apiKey = process.env.API_KEY;
+  
   if (!apiKey) {
-    console.warn("API Key not found in environment variables");
+    console.warn("API Key not found. Please set API_KEY in your environment variables.");
     return null;
   }
   return new GoogleGenAI({ apiKey });
