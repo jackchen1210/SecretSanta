@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { Participant, GiftSuggestion } from '../types';
-import { X, Gift, Sparkles, Plus, Trash, List, Link, Check, LogOut, Copy } from 'lucide-react';
+import { Participant, GiftSuggestion, Language } from '../types';
+import { Gift, Sparkles, Plus, Trash, List, LogOut } from 'lucide-react';
 import { generateGiftSuggestions } from '../services/geminiService';
+import { translations } from '../translations';
 
 interface ParticipantModalProps {
   me: Participant;
@@ -11,6 +12,7 @@ interface ParticipantModalProps {
   onUpdateWishlist: (participantId: string, newWishlist: string[]) => void;
   onClose?: () => void;
   isStandalone?: boolean;
+  lang: Language;
 }
 
 const ParticipantModal: React.FC<ParticipantModalProps> = ({ 
@@ -18,12 +20,12 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
   target, 
   onUpdateWishlist, 
   onClose,
-  isStandalone = false
+  isStandalone = false,
+  lang
 }) => {
   const [activeTab, setActiveTab] = useState<'my-target' | 'my-wishlist'>('my-target');
   const [newWishItem, setNewWishItem] = useState('');
-  const [copied, setCopied] = useState(false);
-  const [showLink, setShowLink] = useState(false);
+  const t = translations[lang];
   
   // AI State
   const [suggestions, setSuggestions] = useState<GiftSuggestion[]>([]);
@@ -49,21 +51,14 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
     setLoadingAi(true);
     setAiError(false);
     try {
-      const results = await generateGiftSuggestions(target.name, target.wishlist);
+      // Pass the current language to the service
+      const results = await generateGiftSuggestions(target.name, target.wishlist, lang);
       setSuggestions(results);
     } catch (err) {
       setAiError(true);
     } finally {
       setLoadingAi(false);
     }
-  };
-
-  // Copy Link Logic
-  const myUrl = `${window.location.origin}${window.location.pathname}?uid=${me.id}&token=${me.secretToken}`;
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(myUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -79,51 +74,21 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-santa-red to-red-800 flex justify-between items-center shrink-0">
           <div>
-            <div className="text-red-200 text-sm font-medium uppercase tracking-wider mb-1">Secret Santa Dashboard</div>
-            <h2 className="text-3xl font-holiday text-white">Hello, {me.name}!</h2>
+            <div className="text-red-200 text-sm font-medium uppercase tracking-wider mb-1">{t.dashboardTitle}</div>
+            <h2 className="text-3xl font-holiday text-white">{t.hello.replace('{name}', me.name)}</h2>
           </div>
           <div className="flex items-center gap-2">
-            {!showLink && (
-              <button 
-                onClick={() => setShowLink(true)}
-                className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-                title="Get Access Link"
-              >
-                <Link size={20} />
-              </button>
-            )}
             {onClose && (
               <button 
                 onClick={onClose} 
                 className="text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors flex items-center gap-2"
-                title="Logout / Close"
+                title={t.logout}
               >
                 <LogOut size={20} />
               </button>
             )}
           </div>
         </div>
-
-        {/* Link Reveal Section */}
-        {showLink && (
-          <div className="bg-black/40 p-4 flex flex-col gap-2 border-b border-white/10 animate-fadeIn">
-            <div className="flex justify-between items-center text-sm text-gray-300">
-              <span>Your private access link:</span>
-              <button onClick={() => setShowLink(false)} className="hover:text-white"><X size={16}/></button>
-            </div>
-            <div className="flex items-center gap-2 bg-black/40 p-2 rounded-lg border border-white/10">
-              <input 
-                readOnly 
-                value={myUrl} 
-                className="bg-transparent text-gray-400 text-xs font-mono flex-1 outline-none"
-              />
-              <button onClick={handleCopyLink} className="text-santa-gold hover:text-white">
-                {copied ? <Check size={16}/> : <Copy size={16}/>}
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-500">Save this link or memorize your password to access this page later.</p>
-          </div>
-        )}
 
         {/* Tabs */}
         <div className="flex border-b border-white/10 shrink-0">
@@ -135,7 +100,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            Who I'm Gifting To
+            {t.tabTarget}
           </button>
           <button
             onClick={() => setActiveTab('my-wishlist')}
@@ -145,7 +110,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                 : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            My Wishlist
+            {t.tabWishlist}
           </button>
         </div>
 
@@ -159,7 +124,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                  {/* Decorative background element */}
                 <div className="absolute top-0 right-0 p-20 bg-santa-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                 
-                <h3 className="text-gray-400 mb-2">You are the Secret Santa for</h3>
+                <h3 className="text-gray-400 mb-2">{t.youAreSantaFor}</h3>
                 <div className="text-5xl font-holiday text-santa-gold drop-shadow-md mb-6">{target.name}</div>
                 
                 <div className="w-16 h-1 bg-gradient-to-r from-transparent via-santa-red to-transparent mx-auto"></div>
@@ -168,11 +133,11 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
               <div>
                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                   <List size={20} className="text-santa-green" />
-                  {target.name}'s Wishlist
+                  {t.targetWishlist.replace('{name}', target.name)}
                 </h3>
                 {target.wishlist.length === 0 ? (
                   <div className="text-gray-500 italic p-4 text-center border border-dashed border-white/10 rounded-xl">
-                    They haven't added anything to their wishlist yet.
+                    {t.emptyTargetWishlist}
                   </div>
                 ) : (
                   <ul className="space-y-3">
@@ -191,27 +156,27 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <Sparkles size={20} className="text-yellow-400" />
-                    AI Gift Assistant
+                    {t.aiTitle}
                   </h3>
                   {!loadingAi && (
                     <button 
                       onClick={handleAskAI}
                       className="text-xs bg-santa-green hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg transition-colors"
                     >
-                      {suggestions.length > 0 ? 'Regenerate' : 'Get Ideas'}
+                      {suggestions.length > 0 ? t.aiButtonRegen : t.aiButtonGenerate}
                     </button>
                   )}
                 </div>
 
                 {loadingAi && (
                   <div className="p-8 text-center text-gray-400 animate-pulse">
-                    Thinking of perfect gifts...
+                    {t.aiLoading}
                   </div>
                 )}
 
                 {aiError && (
                   <div className="p-4 bg-red-900/30 text-red-300 rounded-xl text-sm">
-                    Could not connect to Santa's Workshop (AI). Please check your API key or try again.
+                    {t.aiError}
                   </div>
                 )}
 
@@ -231,7 +196,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                 
                 {!loadingAi && suggestions.length === 0 && !aiError && (
                   <div className="text-sm text-gray-500">
-                    Stuck? Ask our AI elf for gift suggestions based on {target.name}'s profile.
+                    {t.aiEmpty.replace('{name}', target.name)}
                   </div>
                 )}
               </div>
@@ -243,7 +208,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
             <div className="space-y-6 animate-fadeIn">
               <div className="bg-santa-green/10 p-4 rounded-xl border border-santa-green/20">
                 <p className="text-sm text-gray-300">
-                  Help your Secret Santa out! Add things you'd love to receive. They can see this list anonymously.
+                  {t.wishlistHelper}
                 </p>
               </div>
 
@@ -252,7 +217,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                   type="text" 
                   value={newWishItem}
                   onChange={(e) => setNewWishItem(e.target.value)}
-                  placeholder="I would love..."
+                  placeholder={t.wishlistPlaceholder}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:ring-2 focus:ring-santa-gold outline-none"
                 />
                 <button 
@@ -278,7 +243,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                 ))}
                 {me.wishlist.length === 0 && (
                   <div className="text-center py-10 text-gray-600">
-                    Your list is empty. Add something!
+                    {t.wishlistEmpty}
                   </div>
                 )}
               </ul>

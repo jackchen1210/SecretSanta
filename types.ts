@@ -20,3 +20,5 @@ export interface GiftSuggestion {
   reason: string;
   estimatedPrice: string;
 }
+
+export type Language = 'en' | 'zh' | 'ja' | 'ko' | 'es';

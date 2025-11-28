@@ -1,18 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
-import { Participant, AppStage } from './types';
+import { Participant, AppStage, Language } from './types';
 import { createPairings } from './services/santaLogic';
 import SetupPhase from './components/SetupPhase';
 import ParticipantModal from './components/ParticipantModal';
 import AuthModal from './components/AuthModal';
 import Snowfall from './components/Snowfall';
-import { Gift, Lock, RefreshCw, UserPlus, LogIn } from 'lucide-react';
+import { Gift, Lock, RefreshCw, UserPlus, Globe, ChevronDown } from 'lucide-react';
+import { translations } from './translations';
 
 const STORAGE_KEY = 'secret_santa_data_v1';
 
 const App: React.FC = () => {
   const [stage, setStage] = useState<AppStage>(AppStage.SETUP);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  
+  // Initialize language with auto-detection
+  const [lang, setLang] = useState<Language>(() => {
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith('zh')) return 'zh';
+    if (browserLang.startsWith('ja')) return 'ja';
+    if (browserLang.startsWith('ko')) return 'ko';
+    if (browserLang.startsWith('es')) return 'es';
+    return 'en';
+  });
+
+  const t = translations[lang];
   
   // State for the authenticated personal view
   const [personalView, setPersonalView] = useState<{me: Participant, target: Participant} | null>(null);
@@ -90,7 +103,7 @@ const App: React.FC = () => {
   };
 
   const handleReset = () => {
-    if (window.confirm("Are you sure? This will delete all pairings, passwords, and wishlists!")) {
+    if (window.confirm(t.resetConfirm)) {
       setParticipants([]);
       setStage(AppStage.SETUP);
       setPersonalView(null);
@@ -168,11 +181,37 @@ const App: React.FC = () => {
     setAuthModal({ ...authModal, isOpen: false, error: undefined });
   };
 
+  // Helper component for Language Selector
+  const LanguageSelector = () => (
+    <div className="relative group">
+      <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none z-10" />
+      <select
+        value={lang}
+        onChange={(e) => setLang(e.target.value as Language)}
+        className="appearance-none bg-black/30 hover:bg-black/50 border border-white/10 text-white/90 text-sm py-2 pl-9 pr-8 rounded-lg outline-none focus:ring-2 focus:ring-santa-gold cursor-pointer transition-colors"
+      >
+        <option value="en" className="text-black">English</option>
+        <option value="zh" className="text-black">繁體中文</option>
+        <option value="ja" className="text-black">日本語</option>
+        <option value="ko" className="text-black">한국어</option>
+        <option value="es" className="text-black">Español</option>
+      </select>
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 z-10">
+        <ChevronDown size={14} />
+      </div>
+    </div>
+  );
+
   // RENDER: PERSONAL DASHBOARD (Direct Link View or Logged In)
   if (personalView) {
     return (
       <div className="min-h-screen font-sans text-gray-100 relative selection:bg-santa-gold selection:text-santa-dark">
         <Snowfall />
+        {/* Language Switcher Overlay */}
+        <div className="absolute top-4 right-4 z-50">
+           <LanguageSelector />
+        </div>
+
         <div className="relative z-10 container mx-auto p-4 flex items-center justify-center min-h-screen">
           <ParticipantModal
             me={personalView.me}
@@ -180,7 +219,8 @@ const App: React.FC = () => {
             allParticipants={participants}
             onUpdateWishlist={handleUpdateWishlist}
             onClose={() => setPersonalView(null)}
-            isStandalone={false} // Always show close button in App context unless purely standalone URL (handled by URL check logic above, but for consistent UI we can allow "Logout")
+            isStandalone={false}
+            lang={lang}
           />
         </div>
       </div>
@@ -198,14 +238,19 @@ const App: React.FC = () => {
         <header className="flex justify-between items-center mb-12 bg-santa-dark/50 backdrop-blur-sm p-4 rounded-xl border border-white/10">
           <div className="flex items-center gap-3">
             <Gift className="text-santa-red" size={32} />
-            <h1 className="text-2xl font-holiday text-white">Secret Santa</h1>
+            <h1 className="text-2xl font-holiday text-white">{t.appTitle}</h1>
           </div>
-          <button 
-            onClick={handleReset}
-            className="text-xs text-gray-400 hover:text-white flex items-center gap-1 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-          >
-            <RefreshCw size={14} /> Reset
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="mr-2">
+              <LanguageSelector />
+            </div>
+            <button 
+              onClick={handleReset}
+              className="text-xs text-gray-400 hover:text-white flex items-center gap-1 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+            >
+              <RefreshCw size={14} /> {t.reset}
+            </button>
+          </div>
         </header>
 
         {/* View Switcher */}
@@ -213,18 +258,16 @@ const App: React.FC = () => {
           
           {stage === AppStage.SETUP && (
             <div className="w-full animate-fadeIn">
-               <SetupPhase onStart={handleStartExchange} />
+               <SetupPhase onStart={handleStartExchange} lang={lang} />
             </div>
           )}
 
           {stage === AppStage.ACTIVE && (
             <div className="w-full max-w-5xl animate-fadeIn">
               <div className="text-center mb-10">
-                <h2 className="text-4xl font-holiday text-santa-gold mb-3">Who are you?</h2>
+                <h2 className="text-4xl font-holiday text-santa-gold mb-3">{t.whoAreYou}</h2>
                 <p className="text-gray-400 max-w-lg mx-auto">
-                  Click your name below. 
-                  If it's your first time, you'll set a password. 
-                  If you're returning, enter your password to view your Secret Santa.
+                  {t.instruction}
                 </p>
               </div>
 
@@ -248,9 +291,9 @@ const App: React.FC = () => {
                       </span>
                       <span className="text-xs mt-1 flex items-center justify-center gap-1 font-medium">
                         {p.password ? (
-                          <span className="text-gray-500 flex items-center gap-1"><Lock size={12} /> Login</span>
+                          <span className="text-gray-500 flex items-center gap-1"><Lock size={12} /> {t.login}</span>
                         ) : (
-                          <span className="text-santa-gold flex items-center gap-1"><UserPlus size={12} /> Setup</span>
+                          <span className="text-santa-gold flex items-center gap-1"><UserPlus size={12} /> {t.setup}</span>
                         )}
                       </span>
                     </div>
@@ -262,7 +305,7 @@ const App: React.FC = () => {
         </div>
 
         <footer className="mt-12 text-center text-gray-600 text-sm py-4">
-          Built with React, Tailwind & Gemini AI
+          {t.footer}
         </footer>
       </main>
 
@@ -274,6 +317,7 @@ const App: React.FC = () => {
           onSuccess={handleAuthSubmit}
           onClose={closeAuthModal}
           error={authModal.error}
+          lang={lang}
         />
       )}
     </div>

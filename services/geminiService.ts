@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
-import { GiftSuggestion } from '../types';
+import { GiftSuggestion, Language } from '../types';
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -12,7 +13,8 @@ const getAiClient = () => {
 
 export const generateGiftSuggestions = async (
   recipientName: string,
-  recipientWishlist: string[]
+  recipientWishlist: string[],
+  lang: Language = 'en'
 ): Promise<GiftSuggestion[]> => {
   const ai = getAiClient();
   if (!ai) return [];
@@ -20,6 +22,24 @@ export const generateGiftSuggestions = async (
   const wishlistText = recipientWishlist.length > 0 
     ? recipientWishlist.join(', ') 
     : "No specific wishes listed, surprise them based on general popularity.";
+
+  let languageInstruction = "Response MUST be in English.";
+  switch (lang) {
+    case 'zh':
+      languageInstruction = "Response MUST be in Traditional Chinese (Taiwan).";
+      break;
+    case 'ja':
+      languageInstruction = "Response MUST be in Japanese.";
+      break;
+    case 'ko':
+      languageInstruction = "Response MUST be in Korean.";
+      break;
+    case 'es':
+      languageInstruction = "Response MUST be in Spanish.";
+      break;
+    default:
+      languageInstruction = "Response MUST be in English.";
+  }
 
   const prompt = `
     I am participating in a Secret Santa.
@@ -29,6 +49,8 @@ export const generateGiftSuggestions = async (
     Please suggest 3 creative, thoughtful, and appropriate gift ideas. 
     If the wishlist is empty, suggest generally popular but unique items.
     If the wishlist exists, suggest specific items that match the vibe or are direct variations/upgrades.
+    
+    ${languageInstruction}
   `;
 
   try {
@@ -44,7 +66,7 @@ export const generateGiftSuggestions = async (
             properties: {
               item: { type: Type.STRING, description: "Name of the gift item" },
               reason: { type: Type.STRING, description: "Why this is a good match" },
-              estimatedPrice: { type: Type.STRING, description: "Estimated price range (e.g. $20-$30)" }
+              estimatedPrice: { type: Type.STRING, description: "Estimated price range (e.g. $20-$30 or NT$500-1000)" }
             },
             required: ["item", "reason", "estimatedPrice"]
           }
