@@ -10,7 +10,7 @@ export const createPairings = (names: string[]): Participant[] => {
   }
 
   // Create initial participant objects
-  let participants: Participant[] = names.map(name => ({
+  const participants: Participant[] = names.map(name => ({
     id: generateId(),
     name: name.trim(),
     assigneeId: null,
@@ -20,23 +20,49 @@ export const createPairings = (names: string[]): Participant[] => {
     isClaimed: false
   }));
 
-  // Fisher-Yates shuffle
-  const shuffled = [...participants];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
+  // Fisher-Yates Shuffle Helper
+  const shuffle = <T>(array: T[]): T[] => {
+    const newArr = [...array];
+    for (let i = newArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+    }
+    return newArr;
+  };
 
-  // Create a circular assignment to guarantee no self-assignment and one single loop
-  // P[0] -> P[1], P[1] -> P[2], ... P[last] -> P[0]
-  for (let i = 0; i < shuffled.length; i++) {
-    const giver = shuffled[i];
-    const receiver = shuffled[(i + 1) % shuffled.length];
+  // Derangement Algorithm (Shuffle until valid):
+  // We simply shuffle the list of participants to act as "receivers".
+  // We check if any index maps to itself (giver === receiver).
+  // If so, we shuffle again. This is statistically very fast for N >= 3.
+  // This method allows for sub-cycles (e.g., A->B and B->A), which feels more "random" 
+  // than a forced Hamiltonian cycle (A->B->C->...->A).
+
+  let isValid = false;
+  let attempts = 0;
+  let receivers: Participant[] = [];
+
+  while (!isValid && attempts < 1000) {
+    attempts++;
+    receivers = shuffle(participants);
     
-    // Update the original array object
-    const originalGiverIndex = participants.findIndex(p => p.id === giver.id);
-    participants[originalGiverIndex].assigneeId = receiver.id;
+    // Check conditions:
+    // 1. No one assigned to themselves
+    isValid = participants.every((giver, index) => giver.id !== receivers[index].id);
   }
 
-  return participants;
+  // Fallback: If probabilistic shuffle fails (extremely unlikely), use a simple offset
+  // This guarantees validity but is deterministic based on the current list order
+  if (!isValid) {
+     const pool = [...participants];
+     // Shift everyone by 1
+     const first = pool.shift();
+     if (first) pool.push(first);
+     receivers = pool;
+  }
+
+  // Map the results back to the objects
+  return participants.map((giver, index) => ({
+    ...giver,
+    assigneeId: receivers[index].id
+  }));
 };
