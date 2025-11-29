@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Participant, AppStage, Language } from './types';
+import { Participant, AppStage, Language, EventData } from './types';
 import { createPairings } from './services/santaLogic';
+import { storageService } from './services/storageService';
 import SetupPhase from './components/SetupPhase';
 import ParticipantModal from './components/ParticipantModal';
 import AuthModal from './components/AuthModal';
 import Snowfall from './components/Snowfall';
-import { Gift, Lock, RefreshCw, UserPlus, Globe, ChevronDown, Trash2, Home, Copy, Check } from 'lucide-react';
+import { Gift, Lock, RefreshCw, UserPlus, Globe, ChevronDown, Trash2, Home, Copy, Check, Loader2, WifiOff } from 'lucide-react';
 import { translations } from './translations';
 
 const App: React.FC = () => {
@@ -15,6 +16,8 @@ const App: React.FC = () => {
   const [eventId, setEventId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Initialize language with auto-detection
   const [lang, setLang] = useState<Language>(() => {
@@ -27,6 +30,7 @@ const App: React.FC = () => {
   });
 
   const t = translations[lang];
+  const isOfflineMode = storageService.isLocal(eventId);
   
   // State for the authenticated personal view
   const [personalView, setPersonalView] = useState<{me: Participant, target: Participant} | null>(null);
@@ -41,35 +45,26 @@ const App: React.FC = () => {
 
   // 1. Load Data & Routing Logic
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlEventId = params.get('event');
-    const uid = params.get('uid');
-    const token = params.get('token');
+    const init = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const urlEventId = params.get('event');
+      const uid = params.get('uid');
+      const token = params.get('token');
 
-    if (urlEventId) {
-      // Trying to load a specific event
-      const storageKey = `secret_santa_event_${urlEventId}`;
-      const savedData = localStorage.getItem(storageKey);
-
-      if (savedData) {
+      if (urlEventId) {
+        setIsLoading(true);
         try {
-          const parsed = JSON.parse(savedData);
-          const loadedParticipants = parsed.participants.map((p: any) => ({
-            ...p,
-            secretToken: p.secretToken || Math.random().toString(36),
-            isClaimed: p.isClaimed || false,
-            password: p.password || undefined 
-          }));
+          const data = await storageService.getEvent(urlEventId);
           
-          setParticipants(loadedParticipants);
-          setStage(parsed.stage || AppStage.ACTIVE);
+          setParticipants(data.participants);
+          setStage(data.stage || AppStage.ACTIVE);
           setEventId(urlEventId);
 
           // Check for Magic Link Direct Access
-          if (uid && token && loadedParticipants.length > 0) {
-            const me = loadedParticipants.find((p: Participant) => p.id === uid);
+          if (uid && token && data.participants.length > 0) {
+            const me = data.participants.find((p: Participant) => p.id === uid);
             if (me && me.secretToken === token) {
-              const target = loadedParticipants.find((p: Participant) => p.id === me.assigneeId);
+              const target = data.participants.find((p: Participant) => p.id === me.assigneeId);
               if (target) {
                 setPersonalView({ me, target });
               }
@@ -77,56 +72,73 @@ const App: React.FC = () => {
           }
         } catch (e) {
           console.error("Failed to load event data", e);
-          setLoadError("data_corruption");
+          setLoadError("not_found");
+          setEventId(urlEventId); // Keep ID to show which one failed
+        } finally {
+          setIsLoading(false);
         }
       } else {
-        // Event ID in URL but not in local storage
-        setLoadError("not_found");
-        setEventId(urlEventId); // Keep ID to show which one failed
+        // No event ID, clean start (default SETUP)
+        setStage(AppStage.SETUP);
       }
-    } else {
-      // No event ID, clean start (default SETUP)
-      setStage(AppStage.SETUP);
-    }
+    };
+
+    init();
   }, []);
 
-  // 2. Persist Data whenever it changes (only if we have an eventId)
-  useEffect(() => {
-    if (eventId && participants.length > 0) {
-      const storageKey = `secret_santa_event_${eventId}`;
-      localStorage.setItem(storageKey, JSON.stringify({
-        stage,
-        participants
-      }));
+  // Helper to save data to cloud
+  const syncToCloud = async (id: string, currentParticipants: Participant[], currentStage: AppStage) => {
+    setIsSaving(true);
+    try {
+      const payload: EventData = {
+        participants: currentParticipants,
+        stage: currentStage,
+        createdAt: Date.now()
+      };
+      await storageService.updateEvent(id, payload);
+    } catch (e) {
+      console.error("Failed to sync to cloud", e);
+      // Optional: Show a toast error
+    } finally {
+      setIsSaving(false);
     }
-  }, [stage, participants, eventId]);
+  };
 
-  const handleStartExchange = (names: string[]) => {
+  const handleStartExchange = async (names: string[]) => {
+    setIsLoading(true);
     try {
       const pairedParticipants = createPairings(names);
+      const newStage = AppStage.ACTIVE;
+
+      // Generate new Event ID via Server (or fallback to local)
+      const payload: EventData = {
+        participants: pairedParticipants,
+        stage: newStage,
+        createdAt: Date.now()
+      };
       
-      // Generate new Event ID
-      const newEventId = Math.random().toString(36).substring(2, 10);
+      const newEventId = await storageService.createEvent(payload);
       
       setParticipants(pairedParticipants);
       setEventId(newEventId);
-      setStage(AppStage.ACTIVE);
+      setStage(newStage);
 
       // Update URL without reloading
       const newUrl = `${window.location.pathname}?event=${newEventId}`;
       window.history.pushState({ path: newUrl }, '', newUrl);
       
     } catch (e) {
-      alert((e as Error).message);
+      alert("Failed to create event. Please try again.");
+      console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleDeleteEvent = () => {
+    // We don't actually delete from the server in this simple version (JSONBlob auto-expires or stays)
+    // We just clear the local view
     if (window.confirm(t.resetConfirm)) {
-      if (eventId) {
-        localStorage.removeItem(`secret_santa_event_${eventId}`);
-      }
-      // Reset state and clear URL
       setParticipants([]);
       setStage(AppStage.SETUP);
       setEventId(null);
@@ -136,7 +148,6 @@ const App: React.FC = () => {
   };
 
   const handleGoHome = () => {
-    // Just navigate to root to create new event
     window.location.href = window.location.pathname;
   };
 
@@ -147,7 +158,8 @@ const App: React.FC = () => {
     setTimeout(() => setLinkCopied(false), 2000);
   };
 
-  const handleUpdateWishlist = (participantId: string, newWishlist: string[]) => {
+  const handleUpdateWishlist = async (participantId: string, newWishlist: string[]) => {
+    // Optimistic Update
     const updatedParticipants = participants.map(p => {
       if (p.id === participantId) {
         return { ...p, wishlist: newWishlist };
@@ -159,6 +171,11 @@ const App: React.FC = () => {
 
     if (personalView && personalView.me.id === participantId) {
       setPersonalView({ ...personalView, me: { ...personalView.me, wishlist: newWishlist }});
+    }
+
+    // Sync to Cloud
+    if (eventId) {
+      await syncToCloud(eventId, updatedParticipants, stage);
     }
   };
 
@@ -182,7 +199,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAuthSubmit = (inputPassword: string) => {
+  const handleAuthSubmit = async (inputPassword: string) => {
     const { mode, participant } = authModal;
     if (!participant) return;
 
@@ -200,6 +217,12 @@ const App: React.FC = () => {
       
       setPersonalView({ me: updatedMe, target });
       setAuthModal({ isOpen: false, participant: null, mode: 'setup' });
+
+      // Sync password change to cloud
+      if (eventId) {
+        await syncToCloud(eventId, updatedParticipants, stage);
+      }
+
     } else {
       // Login Check
       if (inputPassword === participant.password) {
@@ -237,6 +260,19 @@ const App: React.FC = () => {
     </div>
   );
 
+  // RENDER: LOADING
+  if (isLoading) {
+    return (
+      <div className="min-h-screen font-sans text-gray-100 relative bg-santa-dark flex items-center justify-center p-4">
+        <Snowfall />
+        <div className="relative z-10 flex flex-col items-center">
+          <Loader2 size={48} className="text-santa-gold animate-spin mb-4" />
+          <p className="text-xl font-holiday text-white animate-pulse">Checking Santa's List...</p>
+        </div>
+      </div>
+    );
+  }
+
   // RENDER: ERROR STATE (Invalid Event ID)
   if (loadError) {
     return (
@@ -268,6 +304,20 @@ const App: React.FC = () => {
         <div className="absolute top-4 right-4 z-50">
            <LanguageSelector />
         </div>
+        
+        {/* Saving Indicator */}
+        {isSaving && (
+          <div className="absolute top-4 left-4 z-50 flex items-center gap-2 bg-black/50 px-3 py-1 rounded-full text-xs text-santa-gold">
+            <Loader2 size={12} className="animate-spin" /> Saving...
+          </div>
+        )}
+        
+        {/* Offline Indicator */}
+        {isOfflineMode && (
+          <div className="absolute top-4 left-4 z-40 flex items-center gap-2 bg-red-500/80 px-3 py-1 rounded-full text-xs text-white">
+            <WifiOff size={12} /> {t.offlineMode}
+          </div>
+        )}
 
         <div className="relative z-10 container mx-auto p-4 flex items-center justify-center min-h-screen">
           <ParticipantModal
@@ -324,6 +374,15 @@ const App: React.FC = () => {
             ) : null}
           </div>
         </header>
+        
+        {isOfflineMode && (
+          <div className="w-full max-w-2xl mx-auto mb-6 p-3 bg-red-500/20 border border-red-500/40 rounded-xl flex items-center gap-3 text-red-200 text-sm animate-fadeIn">
+            <WifiOff size={20} className="shrink-0" />
+            <div>
+              <strong>{t.offlineMode}</strong>: {t.offlineModeDesc}
+            </div>
+          </div>
+        )}
 
         {/* View Switcher */}
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -337,16 +396,18 @@ const App: React.FC = () => {
           {stage === AppStage.ACTIVE && (
             <div className="w-full max-w-5xl animate-fadeIn">
               
-              {/* Event Link Sharing */}
-              <div className="mb-8 flex justify-center">
-                <button 
-                  onClick={handleCopyEventLink}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border ${linkCopied ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-santa-gold/10 text-santa-gold border-santa-gold/30 hover:bg-santa-gold/20'}`}
-                >
-                   {linkCopied ? <Check size={16} /> : <Copy size={16} />}
-                   {linkCopied ? t.eventLinkCopied : t.copyEventLink}
-                </button>
-              </div>
+              {/* Event Link Sharing - Only show if online */}
+              {!isOfflineMode && (
+                <div className="mb-8 flex justify-center">
+                  <button 
+                    onClick={handleCopyEventLink}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border ${linkCopied ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-santa-gold/10 text-santa-gold border-santa-gold/30 hover:bg-santa-gold/20'}`}
+                  >
+                     {linkCopied ? <Check size={16} /> : <Copy size={16} />}
+                     {linkCopied ? t.eventLinkCopied : t.copyEventLink}
+                  </button>
+                </div>
+              )}
 
               <div className="text-center mb-10">
                 <h2 className="text-4xl font-holiday text-santa-gold mb-3">{t.whoAreYou}</h2>

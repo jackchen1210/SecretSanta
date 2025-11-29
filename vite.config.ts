@@ -9,9 +9,6 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
-    define: {
-      // This allows the code to use process.env.API_KEY while pulling from VITE_API_KEY or API_KEY in Vercel
-      'process.env.API_KEY': JSON.stringify(env.VITE_API_KEY || env.API_KEY),
-    }
+    // No specific defines needed without AI
   }
 })

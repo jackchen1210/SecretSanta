@@ -1,15 +1,14 @@
 
 import React, { useState } from 'react';
-import { Participant, GiftSuggestion, Language } from '../types';
-import { Gift, Sparkles, Plus, Trash, List, LogOut, Link as LinkIcon, Check } from 'lucide-react';
-import { generateGiftSuggestions } from '../services/geminiService';
+import { Participant, Language } from '../types';
+import { Gift, Plus, Trash, List, LogOut, Link as LinkIcon, Check } from 'lucide-react';
 import { translations } from '../translations';
 
 interface ParticipantModalProps {
   me: Participant;
   target: Participant;
   allParticipants: Participant[];
-  onUpdateWishlist: (participantId: string, newWishlist: string[]) => void;
+  onUpdateWishlist: (participantId: string, newWishlist: string[]) => Promise<void> | void;
   onClose?: () => void;
   isStandalone?: boolean;
   lang: Language;
@@ -29,41 +28,21 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
   const [newWishItem, setNewWishItem] = useState('');
   const t = translations[lang];
   
-  // AI State
-  const [suggestions, setSuggestions] = useState<GiftSuggestion[]>([]);
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [aiError, setAiError] = useState(false);
-
   // Link Copy State
   const [copied, setCopied] = useState(false);
 
   // Wishlist Logic
-  const handleAddWish = (e: React.FormEvent) => {
+  const handleAddWish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newWishItem.trim()) return;
     const updated = [...me.wishlist, newWishItem.trim()];
-    onUpdateWishlist(me.id, updated);
-    setNewWishItem('');
+    setNewWishItem(''); // Optimistic clear
+    await onUpdateWishlist(me.id, updated);
   };
 
-  const removeWish = (index: number) => {
+  const removeWish = async (index: number) => {
     const updated = me.wishlist.filter((_, i) => i !== index);
-    onUpdateWishlist(me.id, updated);
-  };
-
-  // AI Logic
-  const handleAskAI = async () => {
-    setLoadingAi(true);
-    setAiError(false);
-    try {
-      // Pass the current language to the service
-      const results = await generateGiftSuggestions(target.name, target.wishlist, lang);
-      setSuggestions(results);
-    } catch (err) {
-      setAiError(true);
-    } finally {
-      setLoadingAi(false);
-    }
+    await onUpdateWishlist(me.id, updated);
   };
 
   const handleCopyLink = () => {
@@ -164,56 +143,6 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
                       </li>
                     ))}
                   </ul>
-                )}
-              </div>
-
-              {/* AI Section */}
-              <div className="pt-6 border-t border-white/10">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <Sparkles size={20} className="text-yellow-400" />
-                    {t.aiTitle}
-                  </h3>
-                  {!loadingAi && (
-                    <button 
-                      onClick={handleAskAI}
-                      className="text-xs bg-santa-green hover:bg-teal-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      {suggestions.length > 0 ? t.aiButtonRegen : t.aiButtonGenerate}
-                    </button>
-                  )}
-                </div>
-
-                {loadingAi && (
-                  <div className="p-8 text-center text-gray-400 animate-pulse">
-                    {t.aiLoading}
-                  </div>
-                )}
-
-                {aiError && (
-                  <div className="p-4 bg-red-900/30 text-red-300 rounded-xl text-sm">
-                    {t.aiError}
-                  </div>
-                )}
-
-                {!loadingAi && suggestions.length > 0 && (
-                  <div className="grid grid-cols-1 gap-4">
-                    {suggestions.map((sug, i) => (
-                      <div key={i} className="bg-gradient-to-br from-white/10 to-white/5 p-4 rounded-xl border border-white/10">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-bold text-santa-gold">{sug.item}</h4>
-                          <span className="text-xs bg-white/10 px-2 py-1 rounded text-gray-300">{sug.estimatedPrice}</span>
-                        </div>
-                        <p className="text-sm text-gray-400 leading-relaxed">{sug.reason}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {!loadingAi && suggestions.length === 0 && !aiError && (
-                  <div className="text-sm text-gray-500">
-                    {t.aiEmpty.replace('{name}', target.name)}
-                  </div>
                 )}
               </div>
             </div>

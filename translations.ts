@@ -14,8 +14,12 @@ export const translations = {
     instruction: "Click your name below. If it's your first time, you'll set a password. If you're returning, enter your password to view your Secret Santa.",
     login: "Login",
     setup: "Setup",
-    footer: "Built with React, Tailwind & Gemini AI",
+    footer: "Built with React & Tailwind",
     
+    // Offline Mode
+    offlineMode: "Offline Mode",
+    offlineModeDesc: "Connection to server failed. Your event is saved locally on this device only. Sharing links will not work for others.",
+
     // SetupPhase
     setupTitle: "Secret Santa Setup",
     setupSubtitle: "Enter the names of everyone participating. We'll handle the shuffling!",
@@ -48,12 +52,6 @@ export const translations = {
     youAreSantaFor: "You are the Secret Santa for",
     targetWishlist: "{name}'s Wishlist",
     emptyTargetWishlist: "They haven't added anything to their wishlist yet.",
-    aiTitle: "AI Gift Assistant",
-    aiButtonRegen: "Regenerate",
-    aiButtonGenerate: "Get Ideas",
-    aiLoading: "Thinking of perfect gifts...",
-    aiError: "Could not connect to Santa's Workshop (AI). Please check your API key or try again.",
-    aiEmpty: "Stuck? Ask our AI elf for gift suggestions based on {name}'s profile.",
     wishlistHelper: "Help your Secret Santa out! Add things you'd love to receive. They can see this list anonymously.",
     wishlistPlaceholder: "I would love...",
     wishlistEmpty: "Your list is empty. Add something!",
@@ -77,7 +75,11 @@ export const translations = {
     instruction: "點擊下方你的名字。如果是第一次，請設定密碼。如果是回訪，請輸入密碼查看你的送禮對象。",
     login: "登入",
     setup: "設定",
-    footer: "使用 React, Tailwind & Gemini AI 製作",
+    footer: "使用 React & Tailwind 製作",
+
+    // Offline Mode
+    offlineMode: "離線模式",
+    offlineModeDesc: "無法連接伺服器。活動資料僅儲存於此裝置上，分享連結對其他人將無效。",
 
     // SetupPhase
     setupTitle: "交換禮物設定",
@@ -111,12 +113,6 @@ export const translations = {
     youAreSantaFor: "你是這位的天使：",
     targetWishlist: "{name} 的願望清單",
     emptyTargetWishlist: "他們還沒填寫願望清單。",
-    aiTitle: "AI 禮物助手",
-    aiButtonRegen: "重新產生",
-    aiButtonGenerate: "獲得靈感",
-    aiLoading: "正在構思完美的禮物...",
-    aiError: "無法連接到聖誕工坊 (AI)。請檢查 API 金鑰或稍後再試。",
-    aiEmpty: "沒頭緒嗎？讓 AI 精靈根據 {name} 的資料提供禮物建議。",
     wishlistHelper: "幫幫你的天使！寫下你想要收到的禮物，他們會匿名看到這份清單。",
     wishlistPlaceholder: "我想要...",
     wishlistEmpty: "你的清單是空的，加點東西吧！",
@@ -140,7 +136,11 @@ export const translations = {
     instruction: "以下の名前をクリックしてください。初回の場合はパスワードを設定し、2回目以降はパスワードを入力して相手を確認してください。",
     login: "ログイン",
     setup: "設定",
-    footer: "React, Tailwind & Gemini AI で作成",
+    footer: "React & Tailwind で作成",
+
+    // Offline Mode
+    offlineMode: "オフラインモード",
+    offlineModeDesc: "サーバーに接続できませんでした。データはこの端末にのみ保存され、リンク共有は機能しません。",
 
     setupTitle: "シークレットサンタ設定",
     setupSubtitle: "参加者全員の名前を入力してください。シャッフルはこちらで行います！",
@@ -171,12 +171,6 @@ export const translations = {
     youAreSantaFor: "あなたのプレゼント相手は",
     targetWishlist: "{name}のウィッシュリスト",
     emptyTargetWishlist: "まだウィッシュリストに何も追加されていません。",
-    aiTitle: "AIギフトアシスタント",
-    aiButtonRegen: "再生成",
-    aiButtonGenerate: "アイデアを得る",
-    aiLoading: "完璧なギフトを考案中...",
-    aiError: "サンタの工房(AI)に接続できませんでした。APIキーを確認してください。",
-    aiEmpty: "迷っていますか？AIエルフに{name}へのギフト提案を聞いてみましょう。",
     wishlistHelper: "サンタさんを助けましょう！欲しいものを追加してください。匿名で相手に表示されます。",
     wishlistPlaceholder: "欲しいものは...",
     wishlistEmpty: "リストが空です。何か追加しましょう！",
@@ -198,7 +192,11 @@ export const translations = {
     instruction: "아래에서 이름을 클릭하세요. 처음이라면 비밀번호를 설정하고, 다시 방문했다면 비밀번호를 입력하여 선물 대상을 확인하세요.",
     login: "로그인",
     setup: "설정",
-    footer: "React, Tailwind & Gemini AI로 제작",
+    footer: "React & Tailwind로 제작",
+
+    // Offline Mode
+    offlineMode: "오프라인 모드",
+    offlineModeDesc: "서버에 연결할 수 없습니다. 데이터는 이 기기에만 저장되며, 링크 공유는 다른 사람에게 작동하지 않습니다.",
 
     setupTitle: "시크릿 산타 설정",
     setupSubtitle: "참가자 이름을 모두 입력하세요. 섞는 건 저희가 할게요!",
@@ -229,12 +227,6 @@ export const translations = {
     youAreSantaFor: "당신은 이 분의 산타입니다:",
     targetWishlist: "{name}님의 위시리스트",
     emptyTargetWishlist: "아직 위시리스트에 아무것도 없습니다.",
-    aiTitle: "AI 선물 도우미",
-    aiButtonRegen: "다시 생성",
-    aiButtonGenerate: "아이디어 얻기",
-    aiLoading: "완벽한 선물을 생각 중...",
-    aiError: "산타 공방(AI)에 연결할 수 없습니다. API 키를 확인해주세요.",
-    aiEmpty: "고민되시나요? AI 요정에게 {name}님을 위한 선물 추천을 받아보세요.",
     wishlistHelper: "산타를 도와주세요! 받고 싶은 선물을 추가하세요. 익명으로 상대방에게 보입니다.",
     wishlistPlaceholder: "갖고 싶은 것...",
     wishlistEmpty: "목록이 비어 있습니다. 추가해보세요!",
@@ -256,7 +248,11 @@ export const translations = {
     instruction: "Haz clic en tu nombre abajo. Si es la primera vez, establece una contraseña. Si regresas, ingresa tu contraseña para ver a quién le regalas.",
     login: "Entrar",
     setup: "Configurar",
-    footer: "Creado con React, Tailwind & Gemini AI",
+    footer: "Creado con React & Tailwind",
+
+    // Offline Mode
+    offlineMode: "Modo Sin Conexión",
+    offlineModeDesc: "Falló la conexión al servidor. Tu evento se guarda localmente en este dispositivo. Los enlaces compartidos no funcionarán para otros.",
 
     setupTitle: "Configuración de Amigo Invisible",
     setupSubtitle: "Ingresa los nombres de todos los participantes. ¡Nosotros los mezclaremos!",
@@ -287,12 +283,6 @@ export const translations = {
     youAreSantaFor: "Eres el Amigo Invisible de",
     targetWishlist: "Lista de deseos de {name}",
     emptyTargetWishlist: "Aún no han añadido nada a su lista de deseos.",
-    aiTitle: "Asistente de Regalos AI",
-    aiButtonRegen: "Regenerar",
-    aiButtonGenerate: "Obtener Ideas",
-    aiLoading: "Pensando en regalos perfectos...",
-    aiError: "No se pudo conectar con el Taller de Santa (AI). Verifica tu clave API.",
-    aiEmpty: "¿Atascado? Pídele a nuestro elfo AI sugerencias de regalos basadas en el perfil de {name}.",
     wishlistHelper: "¡Ayuda a tu Amigo Invisible! Añade cosas que te gustaría recibir. Ellos verán esta lista anónimamente.",
     wishlistPlaceholder: "Me encantaría...",
     wishlistEmpty: "Tu lista está vacía. ¡Añade algo!",

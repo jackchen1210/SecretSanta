@@ -10,15 +10,15 @@ export interface Participant {
   password?: string; // Optional password for re-entry from the main screen
 }
 
+export interface EventData {
+  participants: Participant[];
+  stage: AppStage;
+  createdAt: number;
+}
+
 export enum AppStage {
   SETUP = 'SETUP',
   ACTIVE = 'ACTIVE'
-}
-
-export interface GiftSuggestion {
-  item: string;
-  reason: string;
-  estimatedPrice: string;
 }
 
 export type Language = 'en' | 'zh' | 'ja' | 'ko' | 'es';
