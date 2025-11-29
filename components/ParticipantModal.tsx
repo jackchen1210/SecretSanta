@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Participant, GiftSuggestion, Language } from '../types';
-import { Gift, Sparkles, Plus, Trash, List, LogOut } from 'lucide-react';
+import { Gift, Sparkles, Plus, Trash, List, LogOut, Link as LinkIcon, Check } from 'lucide-react';
 import { generateGiftSuggestions } from '../services/geminiService';
 import { translations } from '../translations';
 
@@ -13,6 +13,7 @@ interface ParticipantModalProps {
   onClose?: () => void;
   isStandalone?: boolean;
   lang: Language;
+  eventId?: string;
 }
 
 const ParticipantModal: React.FC<ParticipantModalProps> = ({ 
@@ -21,7 +22,8 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
   onUpdateWishlist, 
   onClose,
   isStandalone = false,
-  lang
+  lang,
+  eventId
 }) => {
   const [activeTab, setActiveTab] = useState<'my-target' | 'my-wishlist'>('my-target');
   const [newWishItem, setNewWishItem] = useState('');
@@ -31,6 +33,9 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
   const [suggestions, setSuggestions] = useState<GiftSuggestion[]>([]);
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiError, setAiError] = useState(false);
+
+  // Link Copy State
+  const [copied, setCopied] = useState(false);
 
   // Wishlist Logic
   const handleAddWish = (e: React.FormEvent) => {
@@ -59,6 +64,17 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
     } finally {
       setLoadingAi(false);
     }
+  };
+
+  const handleCopyLink = () => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    let link = `${baseUrl}?uid=${me.id}&token=${me.secretToken}`;
+    if (eventId) {
+      link += `&event=${eventId}`;
+    }
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -249,6 +265,32 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({
               </ul>
             </div>
           )}
+
+          {/* Copy Link Section */}
+          <div className="mt-8 pt-6 border-t border-white/10">
+            <h4 className="text-sm font-medium text-gray-400 mb-3">{t.linkTitle}</h4>
+            <div className="flex gap-2">
+              <div className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-400 font-mono truncate select-all">
+                {(() => {
+                   const baseUrl = window.location.origin + window.location.pathname;
+                   let link = `${baseUrl}?uid=${me.id}&token=${me.secretToken}`;
+                   if (eventId) {
+                     link += `&event=${eventId}`;
+                   }
+                   return link;
+                })()}
+              </div>
+              <button 
+                onClick={handleCopyLink}
+                className={`px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-xs font-bold ${copied ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white hover:bg-white/20'}`}
+              >
+                {copied ? <Check size={14} /> : <LinkIcon size={14} />}
+                {copied ? t.copySuccess : t.copyEventLink}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">{t.linkDesc}</p>
+          </div>
+
         </div>
       </div>
     </div>

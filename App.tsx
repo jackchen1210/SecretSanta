@@ -6,14 +6,15 @@ import SetupPhase from './components/SetupPhase';
 import ParticipantModal from './components/ParticipantModal';
 import AuthModal from './components/AuthModal';
 import Snowfall from './components/Snowfall';
-import { Gift, Lock, RefreshCw, UserPlus, Globe, ChevronDown } from 'lucide-react';
+import { Gift, Lock, RefreshCw, UserPlus, Globe, ChevronDown, Trash2, Home, Copy, Check } from 'lucide-react';
 import { translations } from './translations';
-
-const STORAGE_KEY = 'secret_santa_data_v1';
 
 const App: React.FC = () => {
   const [stage, setStage] = useState<AppStage>(AppStage.SETUP);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   
   // Initialize language with auto-detection
   const [lang, setLang] = useState<Language>(() => {
@@ -38,78 +39,112 @@ const App: React.FC = () => {
     error?: string;
   }>({ isOpen: false, participant: null, mode: 'setup' });
 
-  // Load Data & Check URL for Direct Access
+  // 1. Load Data & Routing Logic
   useEffect(() => {
-    // 1. Check for URL Params (Direct Access)
     const params = new URLSearchParams(window.location.search);
+    const urlEventId = params.get('event');
     const uid = params.get('uid');
     const token = params.get('token');
 
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    let loadedParticipants: Participant[] = [];
-    let loadedStage = AppStage.SETUP;
+    if (urlEventId) {
+      // Trying to load a specific event
+      const storageKey = `secret_santa_event_${urlEventId}`;
+      const savedData = localStorage.getItem(storageKey);
 
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        // Backwards compatibility for old data
-        loadedParticipants = parsed.participants.map((p: any) => ({
-          ...p,
-          secretToken: p.secretToken || Math.random().toString(36),
-          isClaimed: p.isClaimed || false,
-          password: p.password || undefined 
-        }));
-        loadedStage = parsed.stage;
-        setParticipants(loadedParticipants);
-        setStage(loadedStage);
-      } catch (e) {
-        console.error("Failed to load saved data");
-      }
-    }
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          const loadedParticipants = parsed.participants.map((p: any) => ({
+            ...p,
+            secretToken: p.secretToken || Math.random().toString(36),
+            isClaimed: p.isClaimed || false,
+            password: p.password || undefined 
+          }));
+          
+          setParticipants(loadedParticipants);
+          setStage(parsed.stage || AppStage.ACTIVE);
+          setEventId(urlEventId);
 
-    // 2. Authenticate if params exist (Magic Link)
-    if (uid && token && loadedParticipants.length > 0) {
-      const me = loadedParticipants.find(p => p.id === uid);
-      // Allow access via token OR if they are already logged in locally via some other mechanism (optional, but stick to token here)
-      if (me && me.secretToken === token) {
-        const target = loadedParticipants.find(p => p.id === me.assigneeId);
-        if (target) {
-          setPersonalView({ me, target });
+          // Check for Magic Link Direct Access
+          if (uid && token && loadedParticipants.length > 0) {
+            const me = loadedParticipants.find((p: Participant) => p.id === uid);
+            if (me && me.secretToken === token) {
+              const target = loadedParticipants.find((p: Participant) => p.id === me.assigneeId);
+              if (target) {
+                setPersonalView({ me, target });
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load event data", e);
+          setLoadError("data_corruption");
         }
       } else {
-        console.warn("Invalid access token");
+        // Event ID in URL but not in local storage
+        setLoadError("not_found");
+        setEventId(urlEventId); // Keep ID to show which one failed
       }
+    } else {
+      // No event ID, clean start (default SETUP)
+      setStage(AppStage.SETUP);
     }
   }, []);
 
-  // Saving to localStorage
+  // 2. Persist Data whenever it changes (only if we have an eventId)
   useEffect(() => {
-    if (participants.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    if (eventId && participants.length > 0) {
+      const storageKey = `secret_santa_event_${eventId}`;
+      localStorage.setItem(storageKey, JSON.stringify({
         stage,
         participants
       }));
     }
-  }, [stage, participants]);
+  }, [stage, participants, eventId]);
 
   const handleStartExchange = (names: string[]) => {
     try {
       const pairedParticipants = createPairings(names);
+      
+      // Generate new Event ID
+      const newEventId = Math.random().toString(36).substring(2, 10);
+      
       setParticipants(pairedParticipants);
+      setEventId(newEventId);
       setStage(AppStage.ACTIVE);
+
+      // Update URL without reloading
+      const newUrl = `${window.location.pathname}?event=${newEventId}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+      
     } catch (e) {
       alert((e as Error).message);
     }
   };
 
-  const handleReset = () => {
+  const handleDeleteEvent = () => {
     if (window.confirm(t.resetConfirm)) {
+      if (eventId) {
+        localStorage.removeItem(`secret_santa_event_${eventId}`);
+      }
+      // Reset state and clear URL
       setParticipants([]);
       setStage(AppStage.SETUP);
+      setEventId(null);
       setPersonalView(null);
-      localStorage.removeItem(STORAGE_KEY);
       window.history.pushState({}, '', window.location.pathname);
     }
+  };
+
+  const handleGoHome = () => {
+    // Just navigate to root to create new event
+    window.location.href = window.location.pathname;
+  };
+
+  const handleCopyEventLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   const handleUpdateWishlist = (participantId: string, newWishlist: string[]) => {
@@ -202,6 +237,28 @@ const App: React.FC = () => {
     </div>
   );
 
+  // RENDER: ERROR STATE (Invalid Event ID)
+  if (loadError) {
+    return (
+      <div className="min-h-screen font-sans text-gray-100 relative bg-santa-dark flex items-center justify-center p-4">
+        <Snowfall />
+        <div className="relative z-10 max-w-md w-full bg-white/5 border border-white/10 rounded-2xl p-8 text-center backdrop-blur-md">
+           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-red-400">
+             <RefreshCw size={32} />
+           </div>
+           <h2 className="text-2xl font-holiday text-santa-gold mb-2">{t.eventNotFound}</h2>
+           <p className="text-gray-400 mb-6">{t.eventNotFoundDesc}</p>
+           <button 
+             onClick={handleGoHome}
+             className="bg-santa-red hover:bg-red-600 text-white font-bold py-3 px-6 rounded-xl transition-all w-full flex items-center justify-center gap-2"
+           >
+             <Home size={18} /> {t.home}
+           </button>
+        </div>
+      </div>
+    );
+  }
+
   // RENDER: PERSONAL DASHBOARD (Direct Link View or Logged In)
   if (personalView) {
     return (
@@ -221,6 +278,7 @@ const App: React.FC = () => {
             onClose={() => setPersonalView(null)}
             isStandalone={false}
             lang={lang}
+            eventId={eventId || undefined}
           />
         </div>
       </div>
@@ -235,21 +293,35 @@ const App: React.FC = () => {
       <main className="relative z-10 container mx-auto px-4 py-8 min-h-screen flex flex-col">
         
         {/* Header */}
-        <header className="flex justify-between items-center mb-12 bg-santa-dark/50 backdrop-blur-sm p-4 rounded-xl border border-white/10">
+        <header className="flex flex-col md:flex-row justify-between items-center mb-12 bg-santa-dark/50 backdrop-blur-sm p-4 rounded-xl border border-white/10 gap-4 md:gap-0">
           <div className="flex items-center gap-3">
             <Gift className="text-santa-red" size={32} />
             <h1 className="text-2xl font-holiday text-white">{t.appTitle}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-center">
             <div className="mr-2">
               <LanguageSelector />
             </div>
-            <button 
-              onClick={handleReset}
-              className="text-xs text-gray-400 hover:text-white flex items-center gap-1 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
-            >
-              <RefreshCw size={14} /> {t.reset}
-            </button>
+            
+            {/* Navigation Buttons */}
+            {eventId ? (
+              <>
+                 <button 
+                  onClick={handleGoHome}
+                  className="text-xs text-gray-400 hover:text-white flex items-center gap-1 hover:bg-white/10 px-3 py-2 rounded-lg transition-colors"
+                  title={t.home}
+                >
+                  <Home size={14} /> {t.home}
+                </button>
+                <button 
+                  onClick={handleDeleteEvent}
+                  className="text-xs text-red-400 hover:text-red-200 flex items-center gap-1 hover:bg-red-900/20 px-3 py-2 rounded-lg transition-colors"
+                  title={t.reset}
+                >
+                  <Trash2 size={14} /> {t.reset}
+                </button>
+              </>
+            ) : null}
           </div>
         </header>
 
@@ -264,6 +336,18 @@ const App: React.FC = () => {
 
           {stage === AppStage.ACTIVE && (
             <div className="w-full max-w-5xl animate-fadeIn">
+              
+              {/* Event Link Sharing */}
+              <div className="mb-8 flex justify-center">
+                <button 
+                  onClick={handleCopyEventLink}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all border ${linkCopied ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-santa-gold/10 text-santa-gold border-santa-gold/30 hover:bg-santa-gold/20'}`}
+                >
+                   {linkCopied ? <Check size={16} /> : <Copy size={16} />}
+                   {linkCopied ? t.eventLinkCopied : t.copyEventLink}
+                </button>
+              </div>
+
               <div className="text-center mb-10">
                 <h2 className="text-4xl font-holiday text-santa-gold mb-3">{t.whoAreYou}</h2>
                 <p className="text-gray-400 max-w-lg mx-auto">
